@@ -1,0 +1,8 @@
+# Web Framework
+fastapi>=0.129.0
+uvicorn[standard]>=0.40.0
+python-multipart>=0.0.22
+
+# Sentiment Analysis
+transformers>=5.1.0
+torch>=2.10.0
