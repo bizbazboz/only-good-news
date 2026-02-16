@@ -1,0 +1,128 @@
+{
+  "min_title_words": 4,
+  "min_title_length": 4,
+  "feeds": [
+    {
+      "name": "Sky World",
+      "url": "https://feeds.skynews.com/feeds/rss/world.xml",
+      "type": "sky_rss",
+      "category": "humanity",
+      "enabled": true
+    },
+    {
+      "name": "BBC England",
+      "url": "https://feeds.bbci.co.uk/news/england/rss.xml",
+      "type": "bbc_rss",
+      "category": "humanity",
+      "enabled": true
+    },
+    {
+      "name": "BBC Top Stories",
+      "url": "https://feeds.bbci.co.uk/news/rss.xml",
+      "type": "bbc_rss",
+      "category": "home",
+      "enabled": false
+    },
+    {
+      "name": "BBC World",
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+      "type": "bbc_rss",
+      "category": "humanity",
+      "enabled": true
+    },
+    {
+      "name": "BBC UK",
+      "url": "https://feeds.bbci.co.uk/news/uk/rss.xml",
+      "type": "bbc_rss",
+      "category": "humanity",
+      "enabled": true
+    },
+    {
+      "name": "BBC Business",
+      "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+      "type": "bbc_rss",
+      "category": "innovation",
+      "enabled": true
+    },
+    {
+      "name": "BBC Technology",
+      "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
+      "type": "bbc_rss",
+      "category": "innovation",
+      "enabled": true
+    },
+    {
+      "name": "BBC Science",
+      "url": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+      "type": "bbc_rss",
+      "category": "science",
+      "enabled": true
+    },
+    {
+      "name": "BBC Entertainment",
+      "url": "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
+      "type": "bbc_rss",
+      "category": "humanity",
+      "enabled": true
+    },
+    {
+      "name": "Sky UK",
+      "url": "https://feeds.skynews.com/feeds/rss/uk.xml",
+      "type": "sky_rss",
+      "category": "humanity",
+      "enabled": true
+    }
+  ],
+  "ui_nav_categories": [
+    "home",
+    "humanity",
+    "environment",
+    "science",
+    "innovation",
+    "about"
+  ],
+  "cache_duration_hours": 2,
+  "update_check_interval_minutes": 30,
+  "min_confidence": 0.85,
+  "allowed_origins": [
+    "https://jubilant-goggles-rv4qjggxxjc55v6-8080.app.github.dev"
+  ],
+  "banned_keywords": [
+    "death",
+    "died",
+    "killed",
+    "murder",
+    "shooting",
+    "stabbing",
+    "terror",
+    "attack",
+    "war",
+    "bomb",
+    "crash",
+    "accident",
+    "violence",
+    "suicide",
+    "tragedy",
+    "controversy",
+    "fbi",
+    "investigation",
+    "arrest",
+    "charged",
+    "guilty",
+    "prison",
+    "sentenced",
+    "lawsuit",
+    "scandal",
+    "accused",
+    "corruption",
+    "fraud",
+    "indicted",
+    "crisis",
+    "disaster",
+    "threat",
+    "dangerous",
+    "warning",
+    "defence",
+    "battle"
+  ]
+}
