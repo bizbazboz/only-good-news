@@ -49,3 +49,10 @@ Pull requests are welcome. For major changes, please open an issue first
 to discuss what you would like to change.
 
 Please make sure to update tests as appropriate.
+
+## License
+
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International license (`CC BY-NC 4.0`).
+
+- Human-readable summary: https://creativecommons.org/licenses/by-nc/4.0/
+- Full legal code: https://creativecommons.org/licenses/by-nc/4.0/legalcode
