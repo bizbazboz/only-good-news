@@ -9,14 +9,12 @@ import json
 import argparse
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 from contextlib import asynccontextmanager
 import threading
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -55,9 +53,9 @@ async def lifespan(app: FastAPI):
     logger.info("="*70)
     logger.info("Supported sources: BBC News, Sky News")
     logger.info("Database: SQLite with smart re-indexing")
-    logger.info("Frontend: Available at /")
+    logger.info("Frontend: Deployed separately (Next.js)")
     logger.info("Available endpoints:")
-    logger.info("  GET  /              (frontend homepage)")
+    logger.info("  GET  /              (API info)")
     logger.info("  GET  /api/news      (fetch news from database)")
     logger.info("  GET  /api/config    (get configuration)")
     logger.info("  POST /api/refresh   (force refresh all feeds)")
@@ -86,13 +84,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Apply baseline security headers for HTML/API responses."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "img-src 'self' https: data:; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "script-src 'self'; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    return response
+
 # Initialize database
 logger.info("Initializing database...")
 db = NewsDatabase()
 
 # Load sentiment analyzer once at startup
-logger.info("Loading sentiment analysis model...")
-sentiment_analyzer = SentimentAnalyzer()
+sentiment_model = initial_config.get("sentiment_model")
+if sentiment_model:
+    logger.info(f"Loading sentiment analysis model from config: {sentiment_model}")
+    sentiment_analyzer = SentimentAnalyzer(model_name=sentiment_model)
+else:
+    logger.info("Loading default sentiment analysis model...")
+    sentiment_analyzer = SentimentAnalyzer()
 logger.info("Model loaded successfully")
 
 
@@ -134,7 +158,111 @@ def contains_banned_keyword(article: Dict, banned_keywords: List[str]) -> bool:
     return False
 
 
-def process_feed(feed_config: Dict, config: Dict) -> Dict:
+def get_matched_banned_keywords(article: Dict, banned_keywords: List[str]) -> List[str]:
+    """Return all banned keywords matched in article title/description."""
+    if not banned_keywords:
+        return []
+
+    text = (article.get('title', '') + ' ' + article.get('description', '')).lower()
+    return [keyword for keyword in banned_keywords if keyword.lower() in text]
+
+
+def normalize_description(description: str) -> str:
+    """Normalize description text for deduplication."""
+    if not isinstance(description, str):
+        return ""
+    return " ".join(description.strip().lower().split())
+
+
+def dedupe_articles_by_description(
+    articles: List[Dict], seen_descriptions: Optional[set] = None
+) -> Tuple[List[Dict], int]:
+    """
+    Remove articles with duplicate normalized descriptions.
+    Empty descriptions are not deduplicated.
+
+    Args:
+        articles: Candidate articles.
+        seen_descriptions: Optional cross-call set of already-seen descriptions.
+
+    Returns:
+        (deduped_articles, removed_count)
+    """
+    if seen_descriptions is None:
+        seen_descriptions = set()
+
+    deduped = []
+    removed = 0
+    for article in articles:
+        norm_desc = normalize_description(article.get("description", ""))
+        if not norm_desc:
+            deduped.append(article)
+            continue
+        if norm_desc in seen_descriptions:
+            removed += 1
+            continue
+        seen_descriptions.add(norm_desc)
+        deduped.append(article)
+
+    return deduped, removed
+
+
+def apply_uncertainty(sentiment_info: Dict, unsure_threshold: float) -> Dict:
+    """
+    Convert low-confidence predictions to 'neutral'/'UNSURE' to reduce mislabels.
+    """
+    confidence = float(sentiment_info.get('confidence', sentiment_info.get('score', 0.0)) or 0.0)
+    sentiment = sentiment_info.get('sentiment', 'neutral')
+    label = (sentiment_info.get('label', '') or '').upper()
+
+    adjusted = dict(sentiment_info)
+    adjusted['confidence'] = confidence
+    adjusted['score'] = confidence
+
+    if confidence < unsure_threshold:
+        adjusted['sentiment'] = 'neutral'
+        adjusted['label'] = 'UNSURE'
+        adjusted['is_unsure'] = True
+    else:
+        adjusted['sentiment'] = sentiment
+        adjusted['label'] = label if label else sentiment.upper()
+        adjusted['is_unsure'] = False
+
+    return adjusted
+
+
+def fetch_feed_articles(feed_config: Dict) -> Tuple[str, List[Dict], str]:
+    """
+    Fetch and parse articles for a single feed.
+
+    Returns:
+        tuple(feed_name, articles, status)
+    """
+    feed_url = feed_config['url']
+    feed_name = feed_config['name']
+    feed_type = feed_config.get('type', 'bbc_rss')
+
+    if feed_type == 'bbc_rss':
+        parser = BBCNewsParser(feed_url)
+    elif feed_type == 'sky_rss':
+        parser = SkyNewsParser(feed_url)
+    else:
+        logger.warning(f"Unknown feed type: {feed_type}")
+        return feed_name, [], 'unknown_type'
+
+    if not parser.fetch_feed():
+        logger.error(f"Failed to fetch {feed_name}")
+        return feed_name, [], 'failed'
+
+    feed_data = parser.to_dict()
+    articles = feed_data.get('articles', [])
+    if not articles:
+        return feed_name, [], 'empty'
+
+    return feed_name, articles, 'ok'
+
+
+def process_feed(feed_config: Dict, config: Dict, seen_descriptions: Optional[set] = None) -> Dict:
     """
     Process a single feed - fetch, check for new articles, and re-index if needed.
     If new articles are detected, delete all articles from this feed and re-analyze everything.
@@ -147,30 +275,18 @@ def process_feed(feed_config: Dict, config: Dict) -> Dict:
     
     logger.info(f"Checking {feed_name}...")
     
-    # Parse based on feed type
-    if feed_type == 'bbc_rss':
-        parser = BBCNewsParser(feed_url)
-        if not parser.fetch_feed():
-            logger.error(f"Failed to fetch {feed_name}")
-            return {'feed_name': feed_name, 'new_articles': 0, 'status': 'failed'}
-        
-        feed_data = parser.to_dict()
-        articles = feed_data.get('articles', [])
-    elif feed_type == 'sky_rss':
-        parser = SkyNewsParser(feed_url)
-        if not parser.fetch_feed():
-            logger.error(f"Failed to fetch {feed_name}")
-            return {'feed_name': feed_name, 'new_articles': 0, 'status': 'failed'}
-        
-        feed_data = parser.to_dict()
-        articles = feed_data.get('articles', [])
-    else:
-        logger.warning(f"Unknown feed type: {feed_type}")
-        return {'feed_name': feed_name, 'new_articles': 0, 'status': 'unknown_type'}
+    _, articles, fetch_status = fetch_feed_articles(feed_config)
+    if fetch_status != 'ok':
+        return {'feed_name': feed_name, 'new_articles': 0, 'status': fetch_status}
     
     if not articles:
         logger.info(f"No articles found for {feed_name}")
         return {'feed_name': feed_name, 'new_articles': 0, 'status': 'empty'}
+
+    # Deduplicate same-description headlines within this feed payload.
+    articles, removed_duplicates = dedupe_articles_by_description(articles, seen_descriptions)
+    if removed_duplicates > 0:
+        logger.info(f"Deduplicated {removed_duplicates} article(s) from {feed_name} by description")
     
     # Filter banned keywords
     banned_keywords = config.get('banned_keywords', [])
@@ -212,6 +328,11 @@ def process_feed(feed_config: Dict, config: Dict) -> Dict:
     titles = [article.get('title', '') for article in articles]
     descriptions = [article.get('description', '') for article in articles]
     sentiment_results = sentiment_analyzer.analyze_batch(titles, descriptions)
+    unsure_threshold = config.get('unsure_confidence_threshold', 0.75)
+    sentiment_results = [
+        apply_uncertainty(result, unsure_threshold)
+        for result in sentiment_results
+    ]
     
     # Insert all articles from this feed
     db.bulk_insert_articles(
@@ -259,9 +380,10 @@ def fetch_and_update_news(config: Dict, force_check: bool = False) -> Dict:
                     f"Checking {len(enabled_feeds)} feed(s) for updates "
                     f"(interval: {interval_minutes} min)..."
                 )
+                seen_descriptions = set()
 
                 for feed_config in enabled_feeds:
-                    stats = process_feed(feed_config, config)
+                    stats = process_feed(feed_config, config, seen_descriptions)
                     feed_stats.append(stats)
                     if stats['status'] == 'updated':
                         feeds_updated += 1
@@ -297,12 +419,129 @@ def fetch_and_update_news(config: Dict, force_check: bool = False) -> Dict:
     return result
 
 
+def build_admin_review_data(config: Dict) -> Dict:
+    """Build grouped admin review data for API/SSR routes."""
+    enabled_feeds = [f for f in config.get('feeds', []) if f.get('enabled')]
+    banned_keywords = config.get('banned_keywords', [])
+    min_title_words = config.get('min_title_words', config.get('min_title_length', 4))
+    unsure_threshold = config.get('unsure_confidence_threshold', 0.75)
+    flag_confidence_threshold = config.get('headline_flag_confidence_threshold', 0.85)
+
+    positive_articles = []
+    negative_articles = []
+    unsure_articles = []
+    seen_descriptions = set()
+
+    for feed_config in enabled_feeds:
+        feed_name, articles, fetch_status = fetch_feed_articles(feed_config)
+        if fetch_status != 'ok':
+            continue
+
+        articles, _ = dedupe_articles_by_description(articles, seen_descriptions)
+
+        title_word_counts = [len(a.get('title', '').strip().split()) for a in articles]
+        keyword_matches = [get_matched_banned_keywords(a, banned_keywords) for a in articles]
+        keyword_fail_flags = [len(matches) > 0 for matches in keyword_matches]
+        short_title_flags = [count < min_title_words for count in title_word_counts]
+
+        titles = [a.get('title', '') for a in articles]
+        descriptions = [a.get('description', '') for a in articles]
+        raw_results = sentiment_analyzer.analyze_batch(titles, descriptions)
+        results = [apply_uncertainty(r, unsure_threshold) for r in raw_results]
+
+        for article, sentiment_result, keyword_fail, matched_keywords, short_title in zip(
+            articles, results, keyword_fail_flags, keyword_matches, short_title_flags
+        ):
+            sentiment = sentiment_result.get('sentiment', 'neutral')
+            confidence = float(sentiment_result.get('confidence', 0.0) or 0.0)
+            label = sentiment_result.get('label', 'UNSURE')
+            is_unsure = bool(sentiment_result.get('is_unsure', False))
+
+            flag_reasons = []
+            if keyword_fail:
+                flag_reasons.append('banned_keyword')
+            if short_title:
+                flag_reasons.append('short_title')
+            if is_unsure:
+                flag_reasons.append('low_confidence')
+            if sentiment == 'negative' and confidence >= flag_confidence_threshold:
+                flag_reasons.append('high_confidence_negative')
+
+            review_item = {
+                'source': feed_name,
+                'title': article.get('title', ''),
+                'description': article.get('description', ''),
+                'link': article.get('link', ''),
+                'pub_date': article.get('pub_date', ''),
+                'sentiment': sentiment,
+                'label': label,
+                'confidence': confidence,
+                'keyword_fail': keyword_fail,
+                'matched_keywords': matched_keywords,
+                'short_title_fail': short_title,
+                'flagged': len(flag_reasons) > 0,
+                'flag_reasons': flag_reasons
+            }
+
+            if sentiment == 'positive':
+                positive_articles.append(review_item)
+            elif sentiment == 'negative':
+                negative_articles.append(review_item)
+            else:
+                unsure_articles.append(review_item)
+
+    return {
+        'positive_articles': positive_articles,
+        'negative_articles': negative_articles,
+        'unsure_articles': unsure_articles,
+        'counts': {
+            'positive': len(positive_articles),
+            'negative': len(negative_articles),
+            'unsure': len(unsure_articles),
+            'total': len(positive_articles) + len(negative_articles) + len(unsure_articles)
+        },
+        'thresholds': {
+            'unsure_confidence_threshold': unsure_threshold,
+            'headline_flag_confidence_threshold': flag_confidence_threshold,
+            'min_title_words': min_title_words
+        },
+        'timestamp': datetime.now().isoformat()
+    }
+
+
+@app.get("/api/admin/review")
+async def get_admin_review():
+    """
+    Temporary admin endpoint:
+    - fetches current feed headlines
+    - classifies them into positive / negative / unsure
+    - reports keyword-fail status and headline flags
+    """
+    try:
+        config = load_config()
+        return JSONResponse(content=build_admin_review_data(config))
+    except Exception as e:
+        logger.exception(f"Error generating admin review: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Routes
 
 @app.get("/")
 async def root():
-    """Serve frontend homepage."""
-    return FileResponse('frontend/index.html')
+    """API root information endpoint."""
+    return JSONResponse(content={
+        "name": "Only Good News API",
+        "status": "ok",
+        "endpoints": {
+            "news": "/api/news",
+            "config": "/api/config",
+            "admin_review": "/api/admin/review",
+            "refresh": "/api/refresh",
+            "index": "/api/index",
+        },
+        "frontend": "Deploy and run Next.js app from /frontend separately.",
+    })
 
 
 @app.get("/api/news", response_model=NewsResponse)
@@ -404,7 +643,7 @@ if __name__ == "__main__":
     logger.info("Starting FastAPI Backend")
     logger.info("="*70)
     logger.info(f"API Server: http://localhost:{args.port}")
-    logger.info(f"Frontend: http://localhost:{args.port}")
+    logger.info("Frontend: run Next.js app from ./frontend separately")
     logger.info("Press Ctrl+C to stop the server")
     logger.info("="*70)
     

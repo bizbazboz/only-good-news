@@ -6,3 +6,6 @@ python-multipart>=0.0.22
 # Sentiment Analysis
 transformers>=5.1.0
 torch>=2.10.0
+huggingface-hub>=0.34.0
+tensorflow-cpu>=2.16.0
+numpy>=2.0.0
