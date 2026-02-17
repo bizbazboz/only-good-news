@@ -1,9 +1,7 @@
 {
   "sentiment_model": "distilbert-base-uncased-finetuned-sst-2-english",
   "unsure_confidence_threshold": 0.75,
-  "headline_flag_confidence_threshold": 0.85,
   "min_title_words": 4,
-  "min_title_length": 4,
   "feeds": [
     {
       "name": "Sky World",
@@ -11,20 +9,6 @@
       "type": "sky_rss",
       "category": "humanity",
       "enabled": true
-    },
-    {
-      "name": "BBC England",
-      "url": "https://feeds.bbci.co.uk/news/england/rss.xml",
-      "type": "bbc_rss",
-      "category": "humanity",
-      "enabled": true
-    },
-    {
-      "name": "BBC Top Stories",
-      "url": "https://feeds.bbci.co.uk/news/rss.xml",
-      "type": "bbc_rss",
-      "category": "home",
-      "enabled": false
     },
     {
       "name": "BBC World",
@@ -43,13 +27,6 @@
     {
       "name": "BBC Business",
       "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
-      "type": "bbc_rss",
-      "category": "innovation",
-      "enabled": true
-    },
-    {
-      "name": "BBC Technology",
-      "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
       "type": "bbc_rss",
       "category": "innovation",
       "enabled": true
@@ -76,21 +53,8 @@
       "enabled": true
     }
   ],
-  "ui_nav_categories": [
-    "home",
-    "humanity",
-    "environment",
-    "science",
-    "innovation",
-    "about"
-  ],
-  "cache_duration_hours": 2,
   "update_check_interval_minutes": 30,
   "min_confidence": 0.9,
-  "allowed_origins": [
-    "http://localhost:3000",
-    "https://jubilant-goggles-rv4qjggxxjc55v6-8080.app.github.dev"
-  ],
   "banned_keywords": [
     "death",
     "died",
@@ -131,6 +95,13 @@
     "dies",
     "mourns",
     "concerns",
-    "unemployment"
+    "unemployment",
+    "depression",
+    "nuclear",
+    "iran",
+    "political",
+    "tussle",
+    "election",
+    "dark web"
   ]
 }

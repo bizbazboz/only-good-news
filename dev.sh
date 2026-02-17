@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="${ROOT_DIR}/backend"
+BACKEND_SRC_DIR="${BACKEND_DIR}/src"
 FRONTEND_DIR="${ROOT_DIR}/frontend"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
@@ -18,6 +20,12 @@ cleanup() {
   if [[ -n "${BACKEND_PID}" ]] && kill -0 "${BACKEND_PID}" 2>/dev/null; then
     kill "${BACKEND_PID}" 2>/dev/null || true
   fi
+
+  # Remove Python bytecode caches generated during dev runs.
+  find "${BACKEND_DIR}" -type d -name "__pycache__" -prune -exec rm -rf {} + 2>/dev/null || true
+
+  # Reset local dev database after shutdown.
+  rm -f "${BACKEND_DIR}/data/news_archive.db" 2>/dev/null || true
 }
 
 trap cleanup EXIT INT TERM
@@ -32,13 +40,21 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ ! -d "${BACKEND_DIR}" ]]; then
+  echo "Missing backend directory: ${BACKEND_DIR}"
+  exit 1
+fi
+
 if [[ ! -d "${FRONTEND_DIR}" ]]; then
   echo "Missing frontend directory: ${FRONTEND_DIR}"
   exit 1
 fi
 
 echo "Starting backend on :${BACKEND_PORT}"
-"${PYTHON_BIN}" "${ROOT_DIR}/api.py" --port "${BACKEND_PORT}" &
+(
+  cd "${BACKEND_DIR}"
+  "${PYTHON_BIN}" "${BACKEND_SRC_DIR}/main.py" --port "${BACKEND_PORT}"
+) &
 BACKEND_PID=$!
 
 if [[ ! -d "${FRONTEND_DIR}/node_modules" ]]; then
