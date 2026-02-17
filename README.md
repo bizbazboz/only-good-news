@@ -1,30 +1,47 @@
 # Only Good News
 
-Only Good News is an in progress service that use sentiment analysis of a variety of news sources to only present positive news.
+Only Good News is split into:
 
-## Configuration
+- `backend`: FastAPI backend exposing only `GET /news`
+- `frontend`: Next.js SSR frontend
 
-Set the sentiment model in `config.json`:
+## Environment Config
 
-```json
-{
-  "sentiment_model": "distilbert-base-uncased-finetuned-sst-2-english",
-  "unsure_confidence_threshold": 0.75,
-  "headline_flag_confidence_threshold": 0.85
-}
+Backend (`backend/.env`, copy from `backend/.env.example`):
+
+```bash
+cp backend/.env.example backend/.env
 ```
 
-Temporary admin review page:
+- `ALLOWED_ORIGINS`: CORS allowlist. Use comma-separated values or JSON array.
 
-- `http://localhost:3000/admin`
-- Shows positive, negative, and unsure headlines
-- Includes keyword-fail status and flag reasons
+Frontend (`frontend/.env.local`, copy from `frontend/.env.example`):
 
-Frontend rendering:
+```bash
+cp frontend/.env.example frontend/.env.local
+```
 
-- Frontend is a standalone Next.js app in `frontend/`
-- FastAPI backend serves API endpoints at `/api/*`
-- Add your frontend domain(s) to `allowed_origins` in `config.json` for CORS (for example your Appwrite site URL)
+- `API_BASE_URL`: Server-side API base URL for Next.js SSR fetches.
+- `NEXT_PUBLIC_API_BASE_URL`: Client-visible API base URL (kept in sync with backend URL).
+
+Model/filter/feed settings remain in `backend/config/config.json`:
+
+- `SENTIMENT_MODEL`
+- `MIN_CONFIDENCE`
+- `UNSURE_CONFIDENCE_THRESHOLD`
+- `MIN_TITLE_WORDS`
+- `UPDATE_CHECK_INTERVAL_MINUTES`
+- feed list and banned keywords
+
+## Run Locally
+
+```bash
+./dev.sh
+```
+
+- Frontend runs at `http://localhost:3000`
+- Backend runs at `http://localhost:8000`
+- API endpoint: `GET /news`
 
 ## Contributing
 
@@ -43,7 +60,3 @@ Please make sure to update tests as appropriate.
 - Develop frontend
 - Public Deployment
 - Custom Sentiment Analysis Model
-
-(DEV COMMANDS)
-python -m pip install -r requirements.txt
-./dev.sh

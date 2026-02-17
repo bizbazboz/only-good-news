@@ -1,10 +1,20 @@
-import Link from "next/link";
 import { fetchApi, normalizeThumbnailUrl } from "lib/api";
 
 function readMinutes(article) {
   const text = `${article?.title || ""} ${article?.description || ""}`.trim();
   const words = text.split(/\s+/).filter(Boolean).length;
   return Math.max(3, Math.min(9, Math.ceil(words / 35)));
+}
+
+function formatDateTime(value) {
+  const dt = new Date(value || "");
+  if (Number.isNaN(dt.getTime())) return "Fresh update";
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const min = String(dt.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} - ${hh}:${min}`;
 }
 
 function imageForArticle(article, fallbackSeed) {
@@ -18,23 +28,23 @@ export default async function HomePage() {
   let news = null;
   let error = "";
   try {
-    news = await fetchApi("/api/news");
+    news = await fetchApi("/news");
   } catch (err) {
     error = err instanceof Error ? err.message : "Could not load stories.";
   }
 
   const merged = news
-    ? [
-        ...(news.positive_articles || []),
-        ...(news.neutral_articles || []),
-        ...(news.negative_articles || [])
-      ]
+    ? [...(news.positive_articles || [])].filter(
+        (article) => Number(article?.confidence || 0) >= Number(news?.applied_min_confidence || 0)
+      ).sort((a, b) => {
+        const da = Date.parse(a?.pub_date || "") || 0;
+        const db = Date.parse(b?.pub_date || "") || 0;
+        return db - da;
+      })
     : [];
 
   const featured = merged[0];
-  const cards = merged.slice(1, 15);
-  const total = Number(news?.total || 0);
-  const positives = Number(news?.positive_articles?.length || 0);
+  const cards = merged.slice(1);
 
   return (
     <main className="wrap">
@@ -43,7 +53,6 @@ export default async function HomePage() {
           <div className="brand-mark">☀</div>
           <strong>ONLY GOOD NEWS</strong>
         </div>
-        <Link href="/admin">Admin</Link>
       </header>
 
       <section
@@ -62,12 +71,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="summary">
-        <strong>Smart News Analysis</strong>
-        <div>{`${positives} uplifting stories surfaced from ${total} analyzed headlines.`}</div>
-        <div>{news?.cached ? "Using cached analysis" : "Freshly updated"}</div>
-      </section>
-
       {error ? <p>{error}</p> : null}
 
       <section className="section-head">
@@ -78,23 +81,39 @@ export default async function HomePage() {
         {cards.length ? (
           cards.map((article, idx) => (
             <article key={`${article.link || article.title || "story"}-${idx}`} className="card">
-              <div
-                className="card-media"
-                style={{ backgroundImage: `url('${imageForArticle(article, idx + 1)}')` }}
-              >
-                <span className="chip">Verified Positive</span>
-              </div>
-              <h3>{article.title || "Positive story"}</h3>
-              <p>{article.description || "Read the full article for details."}</p>
-              <div className="meta">
-                {article.source || "Global Desk"} · {article.pub_date || "Fresh update"} ·{" "}
-                {readMinutes(article)} min read
-              </div>
               {article.link ? (
-                <a className="link" href={article.link} target="_blank" rel="noopener noreferrer">
-                  Read original story
+                <a
+                  className="link"
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "block", textDecoration: "none", color: "inherit" }}
+                >
+                  <div
+                    className="card-media"
+                    style={{ backgroundImage: `url('${imageForArticle(article, idx + 1)}')` }}
+                  />
+                  <h3>{article.title || "Positive story"}</h3>
+                  <p>{article.description || "Read the full article for details."}</p>
+                  <div className="meta">
+                    {article.source || "Global Desk"} · {formatDateTime(article.pub_date)} ·{" "}
+                    {readMinutes(article)} min read
+                  </div>
                 </a>
-              ) : null}
+              ) : (
+                <>
+                  <div
+                    className="card-media"
+                    style={{ backgroundImage: `url('${imageForArticle(article, idx + 1)}')` }}
+                  />
+                  <h3>{article.title || "Positive story"}</h3>
+                  <p>{article.description || "Read the full article for details."}</p>
+                  <div className="meta">
+                    {article.source || "Global Desk"} · {formatDateTime(article.pub_date)} ·{" "}
+                    {readMinutes(article)} min read
+                  </div>
+                </>
+              )}
             </article>
           ))
         ) : (

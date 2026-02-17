@@ -11,6 +11,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from contextlib import contextmanager
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,10 @@ class NewsDatabase:
     def _init_db(self):
         """Initialize database schema."""
         try:
+            # Ensure the SQLite parent directory exists (e.g. data/news_archive.db).
+            db_parent = Path(self.db_path).expanduser().resolve().parent
+            db_parent.mkdir(parents=True, exist_ok=True)
+
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -195,7 +200,7 @@ class NewsDatabase:
                     pass
     
     def get_all_articles(self, min_confidence: float = 0.6) -> Dict:
-        """Get all articles from database, categorized by sentiment."""
+        """Get positive articles from database filtered by confidence."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -209,10 +214,14 @@ class NewsDatabase:
             rows = cursor.fetchall()
             
             positive_articles = []
-            negative_articles = []
-            neutral_articles = []
+            included_count = 0
             
             for row in rows:
+                confidence = float(row['confidence'] or 0.0)
+                if confidence < min_confidence:
+                    # Exclude sub-threshold articles entirely from API response.
+                    continue
+
                 article = {
                     'source': row['feed_name'],
                     'title': row['title'],
@@ -221,22 +230,16 @@ class NewsDatabase:
                     'link': row['link'],
                     'pub_date': row['pub_date'],
                     'sentiment': row['sentiment'],
-                    'confidence': row['confidence'],
+                    'confidence': confidence,
                     'label': row['label']
                 }
-                
-                if row['sentiment'] == 'positive' and row['confidence'] >= min_confidence:
+                if row['sentiment'] == 'positive':
                     positive_articles.append(article)
-                elif row['sentiment'] == 'negative' and row['confidence'] >= min_confidence:
-                    negative_articles.append(article)
-                else:
-                    neutral_articles.append(article)
+                    included_count += 1
             
             return {
                 'positive_articles': positive_articles,
-                'negative_articles': negative_articles,
-                'neutral_articles': neutral_articles,
-                'total': len(rows)
+                'total': included_count
             }
     
     def get_feed_stats(self) -> List[Dict]:

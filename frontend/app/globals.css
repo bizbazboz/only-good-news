@@ -118,15 +118,6 @@ h1 {
   border-radius: 10px;
 }
 
-.summary {
-  margin-top: 14px;
-  background: #e4e8d4;
-  border: 1px solid #d4d9c1;
-  border-radius: 12px;
-  padding: 12px;
-  color: var(--muted);
-}
-
 .section-head {
   margin: 24px 0 14px;
   display: flex;
@@ -139,14 +130,14 @@ h1 {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .card-media {
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   border: 1px solid #d5d2c2;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #607151 center/cover no-repeat;
   position: relative;
 }
@@ -163,99 +154,40 @@ h1 {
 }
 
 .card h3 {
-  margin: 11px 0 8px;
-  font-size: clamp(22px, 2.2vw, 30px);
-  line-height: 1.15;
+  margin: 8px 0 6px;
+  font-size: clamp(18px, 1.6vw, 22px);
+  line-height: 1.2;
 }
 
 .card p {
   margin: 0;
   color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .meta {
-  margin-top: 10px;
-  font-size: 12px;
+  margin-top: 8px;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .link {
-  margin-top: 10px;
+  margin-top: 8px;
   display: inline-block;
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 13px;
 }
-
-.grid4 {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.panel strong {
-  display: block;
-  font-size: 22px;
-}
-
-.table-wrap {
-  margin-top: 16px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--surface);
-}
-
-.table-wrap h2 {
-  margin: 0;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  font-size: 16px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  text-align: left;
-  vertical-align: top;
-  padding: 8px 10px;
-  border-bottom: 1px solid #eceee3;
-  font-size: 12px;
-}
-
-th {
-  text-transform: uppercase;
-  font-size: 11px;
-}
-
-.pill {
-  display: inline-block;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.positive { color: var(--positive); }
-.negative { color: var(--negative); }
-.unsure { color: var(--unsure); }
 
 @media (max-width: 900px) {
   .cards {
-    grid-template-columns: 1fr;
-  }
-  .grid4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .cards {
+    grid-template-columns: 1fr;
   }
 }
