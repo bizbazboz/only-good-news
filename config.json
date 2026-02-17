@@ -1,4 +1,7 @@
 {
+  "sentiment_model": "distilbert-base-uncased-finetuned-sst-2-english",
+  "unsure_confidence_threshold": 0.75,
+  "headline_flag_confidence_threshold": 0.85,
   "min_title_words": 4,
   "min_title_length": 4,
   "feeds": [
@@ -83,8 +86,9 @@
   ],
   "cache_duration_hours": 2,
   "update_check_interval_minutes": 30,
-  "min_confidence": 0.85,
+  "min_confidence": 0.9,
   "allowed_origins": [
+    "http://localhost:3000",
     "https://jubilant-goggles-rv4qjggxxjc55v6-8080.app.github.dev"
   ],
   "banned_keywords": [
@@ -123,6 +127,10 @@
     "dangerous",
     "warning",
     "defence",
-    "battle"
+    "battle",
+    "dies",
+    "mourns",
+    "concerns",
+    "unemployment"
   ]
 }
