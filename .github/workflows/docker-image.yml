@@ -1,0 +1,23 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: docker build ./backend --file ./backend/Dockerfile --tag only-good-news-backend:ci
+
+      - name: Build frontend image
+        run: docker build ./frontend --file ./frontend/Dockerfile --tag only-good-news-frontend:ci
