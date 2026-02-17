@@ -3,6 +3,8 @@
 Only Good News is split into:
 
 - `backend`: FastAPI backend exposing only `GET /news`
+  - Stores filtered API articles in `backend/data/news_archive.db`
+  - Archives all fetched raw posts in `backend/data/archive.db` for future fine-tuning
 - `frontend`: Next.js SSR frontend
 
 ## Configuration
@@ -25,7 +27,9 @@ Model/filter/feed settings remain in `backend/config/config.json`:
 - `UNSURE_CONFIDENCE_THRESHOLD`
 - `MIN_TITLE_WORDS`
 - `UPDATE_CHECK_INTERVAL_MINUTES`
-- feed list and banned keywords
+- feed list and `banned_keywords_file` (text file, one keyword per line)
+- `archive_enabled` (`true`/`false`) to turn raw-post archiving on or off
+- `archive_db_path` for archive DB location (default: `data/archive.db`)
 
 ## Run Locally (Non-Docker)
 

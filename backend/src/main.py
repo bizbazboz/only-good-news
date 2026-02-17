@@ -46,6 +46,8 @@ logger = logging.getLogger(__name__)
 UPDATE_CHECK_INTERVAL_MINUTES = 30
 last_update_check: Optional[datetime] = None
 update_check_lock = threading.Lock()
+archive_db: Optional[NewsDatabase] = None
+archive_db_resolved_path: Optional[str] = None
 
 
 def _parse_allowed_origins(raw: str) -> List[str]:
@@ -62,6 +64,33 @@ def _parse_allowed_origins(raw: str) -> List[str]:
     return [part.strip() for part in value.split(",") if part.strip()]
 
 
+def _resolve_banned_keywords(config: Dict) -> List[str]:
+    file_value = str(config.get("banned_keywords_file", "")).strip()
+    if not file_value:
+        return [str(k).strip() for k in config.get("banned_keywords", []) if str(k).strip()]
+
+    file_path = Path(file_value)
+    if not file_path.is_absolute():
+        file_path = (CONFIG_PATH.parent / file_path).resolve()
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            keywords = []
+            for line in f:
+                raw = line.strip()
+                if not raw or raw.startswith("#"):
+                    continue
+                keywords.append(raw.lower())
+            return keywords
+    except OSError as exc:
+        logger.warning(
+            "Could not load banned keywords file at %s (%s). Falling back to config list.",
+            file_path,
+            exc,
+        )
+        return [str(k).strip() for k in config.get("banned_keywords", []) if str(k).strip()]
+
+
 def _apply_env_overrides(config: Dict) -> Dict:
     cfg = dict(config)
 
@@ -72,10 +101,41 @@ def _apply_env_overrides(config: Dict) -> Dict:
     return cfg
 
 
+def _is_enabled(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+def _get_archive_db(config: Dict) -> Optional[NewsDatabase]:
+    global archive_db
+    global archive_db_resolved_path
+
+    if not _is_enabled(config.get("archive_enabled", True)):
+        return None
+
+    configured_path = str(config.get("archive_db_path", "data/archive.db")).strip()
+    archive_path = Path(configured_path)
+    if not archive_path.is_absolute():
+        archive_path = (FUNCTION_DIR / archive_path).resolve()
+
+    resolved_path = str(archive_path)
+    if archive_db is None or archive_db_resolved_path != resolved_path:
+        archive_db = NewsDatabase(db_path=resolved_path)
+        archive_db_resolved_path = resolved_path
+        logger.info("Archive DB enabled at %s", resolved_path)
+
+    return archive_db
+
+
 def load_config() -> Dict:
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         base = json.load(f)
-    return _apply_env_overrides(base)
+    config = _apply_env_overrides(base)
+    config["banned_keywords"] = _resolve_banned_keywords(config)
+    return config
 
 
 initial_config = load_config()
@@ -124,6 +184,7 @@ async def add_security_headers(request: Request, call_next):
 logger.info("Initializing database...")
 db_path = str(FUNCTION_DIR / "data" / "news_archive.db")
 db = NewsDatabase(db_path=db_path)
+_ = _get_archive_db(initial_config)
 
 sentiment_model = initial_config.get("sentiment_model")
 if sentiment_model:
@@ -224,6 +285,13 @@ def process_feed(feed_config: Dict, config: Dict, seen_descriptions: Optional[se
     _, articles, fetch_status = fetch_feed_articles(feed_config)
     if fetch_status != "ok":
         return {"feed_name": feed_name, "new_articles": 0, "status": fetch_status}
+
+    archive_store = _get_archive_db(config)
+    if archive_store is not None:
+        try:
+            archive_store.bulk_upsert_articles(articles, feed_url, feed_type, feed_name)
+        except Exception as exc:
+            logger.warning("Failed archiving raw articles for %s: %s", feed_name, exc)
 
     articles, _ = dedupe_articles_by_description(articles, seen_descriptions)
 

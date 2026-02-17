@@ -198,6 +198,52 @@ class NewsDatabase:
                 except sqlite3.IntegrityError:
                     # Skip duplicates
                     pass
+
+    def bulk_upsert_articles(
+        self,
+        articles: List[Dict],
+        feed_url: str,
+        feed_type: str,
+        feed_name: str,
+    ):
+        """Insert or update multiple raw articles without sentiment labels."""
+        if not articles:
+            return
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                """
+                INSERT INTO articles
+                (feed_url, feed_type, feed_name, guid, title, description,
+                 thumbnail, link, pub_date, sentiment, confidence, label)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(feed_url, guid) DO UPDATE SET
+                    title = excluded.title,
+                    description = excluded.description,
+                    thumbnail = excluded.thumbnail,
+                    link = excluded.link,
+                    pub_date = excluded.pub_date,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                [
+                    (
+                        feed_url,
+                        feed_type,
+                        feed_name,
+                        article.get("guid", article.get("link", "")),
+                        article.get("title", ""),
+                        article.get("description", ""),
+                        article.get("thumbnail", ""),
+                        article.get("link", ""),
+                        article.get("pub_date", ""),
+                        None,
+                        None,
+                        None,
+                    )
+                    for article in articles
+                ],
+            )
     
     def get_all_articles(self, min_confidence: float = 0.6) -> Dict:
         """Get positive articles from database filtered by confidence."""
