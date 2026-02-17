@@ -44,6 +44,74 @@
       "url": "https://feeds.skynews.com/feeds/rss/uk.xml",
       "type": "sky_rss",
       "enabled": true
+    },
+    {
+      "name": "ABC International",
+      "url": "https://abcnews.go.com/abcnews/internationalheadlines",
+      "type": "bbc_rss",
+      "enabled": true
+    },
+    {
+      "name": "NYT Art & Design",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/ArtandDesign.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "NYT Health",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "NYT World",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "NYT Africa",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/Africa.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "NYT Americas",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/Americas.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "NYT Asia Pacific",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "NYT Europe",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "NYT Middle East",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml",
+      "type": "bbc_rss",
+      "enabled": false
+    },
+    {
+      "name": "CNBC World",
+      "url": "https://www.cnbc.com/id/100727362/device/rss/rss.html",
+      "type": "cnbc_rss",
+      "enabled": false,
+      "_comment": "CNBC's RSS feed has no images, so it's disabled by default."
+    },
+    {
+      "name": "BuzzFeed World",
+      "url": "https://www.buzzfeed.com/in/world.xml",
+      "type": "buzzfeed_rss",
+      "enabled": false,
+      "_comment": "BuzzFeed's RSS feed is no longer properly supported, so it's disabled by default."
     }
   ],
   "update_check_interval_minutes": 30,

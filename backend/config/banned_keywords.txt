@@ -114,3 +114,5 @@ manhunt
 smuggling
 trafficking
 seized
+millitant
+islamic state
