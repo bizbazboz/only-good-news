@@ -1,4 +1,4 @@
-import { fetchApi, normalizeThumbnailUrl } from "lib/api";
+import { fetchApi, normalizeThumbnailUrl } from "../lib/api";
 
 function readMinutes(article) {
   const text = `${article?.title || ""} ${article?.description || ""}`.trim();
@@ -15,13 +15,6 @@ function formatDateTime(value) {
   const hh = String(dt.getHours()).padStart(2, "0");
   const min = String(dt.getMinutes()).padStart(2, "0");
   return `${dd}/${mm}/${yyyy} - ${hh}:${min}`;
-}
-
-function imageForArticle(article, fallbackSeed) {
-  const thumbnail = normalizeThumbnailUrl(article?.thumbnail);
-  if (thumbnail) return thumbnail;
-  const seed = encodeURIComponent(`${article?.title || "story"}-${fallbackSeed}`);
-  return `https://picsum.photos/seed/${seed}/1200/760`;
 }
 
 export default async function HomePage() {
@@ -45,6 +38,7 @@ export default async function HomePage() {
 
   const featured = merged[0];
   const cards = merged.slice(1);
+  const featuredThumbnail = normalizeThumbnailUrl(featured?.thumbnail);
 
   return (
     <main className="wrap">
@@ -57,7 +51,7 @@ export default async function HomePage() {
 
       <section
         className="hero"
-        style={{ backgroundImage: `url('${featured ? imageForArticle(featured, 0) : ""}')` }}
+        style={{ backgroundImage: featuredThumbnail ? `url('${featuredThumbnail}')` : "none" }}
       >
         <div className="hero-content">
           <span className="eyebrow">Good News of the Day</span>
@@ -79,7 +73,9 @@ export default async function HomePage() {
 
       <section className="cards">
         {cards.length ? (
-          cards.map((article, idx) => (
+          cards.map((article, idx) => {
+            const thumbnail = normalizeThumbnailUrl(article?.thumbnail);
+            return (
             <article key={`${article.link || article.title || "story"}-${idx}`} className="card">
               {article.link ? (
                 <a
@@ -91,7 +87,7 @@ export default async function HomePage() {
                 >
                   <div
                     className="card-media"
-                    style={{ backgroundImage: `url('${imageForArticle(article, idx + 1)}')` }}
+                    style={{ backgroundImage: thumbnail ? `url('${thumbnail}')` : "none" }}
                   />
                   <h3>{article.title || "Positive story"}</h3>
                   <p>{article.description || "Read the full article for details."}</p>
@@ -104,7 +100,7 @@ export default async function HomePage() {
                 <>
                   <div
                     className="card-media"
-                    style={{ backgroundImage: `url('${imageForArticle(article, idx + 1)}')` }}
+                    style={{ backgroundImage: thumbnail ? `url('${thumbnail}')` : "none" }}
                   />
                   <h3>{article.title || "Positive story"}</h3>
                   <p>{article.description || "Read the full article for details."}</p>
@@ -115,7 +111,7 @@ export default async function HomePage() {
                 </>
               )}
             </article>
-          ))
+          )})
         ) : (
           <p>No stories are available right now.</p>
         )}
