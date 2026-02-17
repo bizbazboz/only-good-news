@@ -5,24 +5,18 @@ Only Good News is split into:
 - `backend`: FastAPI backend exposing only `GET /news`
 - `frontend`: Next.js SSR frontend
 
-## Environment Config
+## Configuration
 
-Backend (`backend/.env`, copy from `backend/.env.example`):
+You can run with direct environment variables (recommended for Docker/CI), or use local env files.
 
-```bash
-cp backend/.env.example backend/.env
-```
+Backend variables:
 
-- `ALLOWED_ORIGINS`: CORS allowlist. Use comma-separated values or JSON array.
+- `ALLOWED_ORIGINS`: CORS allowlist (comma-separated values or JSON array)
 
-Frontend (`frontend/.env.local`, copy from `frontend/.env.example`):
+Frontend variables:
 
-```bash
-cp frontend/.env.example frontend/.env.local
-```
-
-- `API_BASE_URL`: Server-side API base URL for Next.js SSR fetches.
-- `NEXT_PUBLIC_API_BASE_URL`: Client-visible API base URL (kept in sync with backend URL).
+- `API_BASE_URL`: Server-side API base URL for Next.js SSR fetches
+- `NEXT_PUBLIC_API_BASE_URL`: Client-visible API base URL
 
 Model/filter/feed settings remain in `backend/config/config.json`:
 
@@ -33,15 +27,46 @@ Model/filter/feed settings remain in `backend/config/config.json`:
 - `UPDATE_CHECK_INTERVAL_MINUTES`
 - feed list and banned keywords
 
-## Run Locally
+## Run Locally (Non-Docker)
+
+```bash
+ALLOWED_ORIGINS=http://localhost:3000 \
+python3 backend/src/main.py --host 0.0.0.0 --port 8000
+```
+
+In a second terminal:
+
+```bash
+cd frontend
+API_BASE_URL=http://localhost:8000 \
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 \
+npm install && npm run build && npm run start
+```
+
+Or use the helper script:
 
 ```bash
 ./dev.sh
 ```
 
-- Frontend runs at `http://localhost:3000`
-- Backend runs at `http://localhost:8000`
-- API endpoint: `GET /news`
+## Run With Docker
+
+From repo root:
+
+```bash
+ALLOWED_ORIGINS=http://localhost:3000 \
+API_BASE_URL=http://backend:8000 \
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 \
+docker compose up --build
+```
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000/news`
+- Backend SQLite data persists in Docker volume `backend_data`
+
+## Deployment
+
+See `DEPLOYMENT.md` for platform-agnostic deployment steps, including Docker and env-var-only configuration.
 
 ## Contributing
 
