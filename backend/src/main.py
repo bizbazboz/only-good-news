@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from database import NewsDatabase
-from parsers import BBCNewsParser, SkyNewsParser
+from parsers import BBCNewsParser, BuzzFeedNewsParser, CNBCNewsParser, SkyNewsParser
 from sentiment_analysis import SentimentAnalyzer
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -265,6 +265,10 @@ def fetch_feed_articles(feed_config: Dict) -> Tuple[str, List[Dict], str]:
         parser = BBCNewsParser(feed_url)
     elif feed_type == "sky_rss":
         parser = SkyNewsParser(feed_url)
+    elif feed_type == "buzzfeed_rss":
+        parser = BuzzFeedNewsParser(feed_url)
+    elif feed_type == "cnbc_rss":
+        parser = CNBCNewsParser(feed_url)
     else:
         return feed_name, [], "unknown_type"
 
